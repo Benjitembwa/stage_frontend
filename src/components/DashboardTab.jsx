@@ -22,7 +22,7 @@ ChartJS.register(
   ArcElement
 );
 
-const DashboardTab = ({ darkMode, documentRequests }) => {
+const DashboardTab = ({ darkMode }) => {
   // Chart data
   const lineChartData = {
     labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
@@ -111,63 +111,6 @@ const DashboardTab = ({ darkMode, documentRequests }) => {
             Répartition des types de documents
           </h3>
           <Pie data={pieChartData} options={{ responsive: true }} />
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div
-        className={`p-6 rounded-xl shadow ${
-          darkMode ? "bg-gray-800" : "bg-white"
-        }`}
-      >
-        <h3 className="text-lg font-semibold mb-4">Activité récente</h3>
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr
-                className={`${
-                  darkMode ? "border-gray-700" : "border-gray-200"
-                } border-b`}
-              >
-                <th className="text-left py-3 px-4">Étudiant</th>
-                <th className="text-left py-3 px-4">Document</th>
-                <th className="text-left py-3 px-4">Date</th>
-                <th className="text-left py-3 px-4">Statut</th>
-              </tr>
-            </thead>
-            <tbody>
-              {documentRequests.slice(0, 5).map((request) => (
-                <tr
-                  key={request.id}
-                  className={`${
-                    darkMode ? "border-gray-700" : "border-gray-200"
-                  } border-b`}
-                >
-                  <td className="py-3 px-4">{request.student}</td>
-                  <td className="py-3 px-4">{request.type}</td>
-                  <td className="py-3 px-4">{request.date}</td>
-                  <td className="py-3 px-4">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs 
-                              ${
-                                request.status === "approved"
-                                  ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                  : request.status === "rejected"
-                                  ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                                  : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                              }`}
-                    >
-                      {request.status === "approved"
-                        ? "Approuvé"
-                        : request.status === "rejected"
-                        ? "Rejeté"
-                        : "En attente"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>

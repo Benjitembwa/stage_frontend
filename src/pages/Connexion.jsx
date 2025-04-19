@@ -1,44 +1,147 @@
 import { useState, useEffect } from "react";
 import { FiEye, FiEyeOff, FiLock, FiMail, FiUser } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
+import {
+  getAllMentions,
+  getAllPromotions,
+  loginEtudiant,
+  loginPersonnel,
+  registerEtudiant,
+  registerPersonnel,
+} from "../api/apiService";
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState("student");
+  const [role, setRole] = useState("Etudiant");
+  const [promotions, setPromotions] = useState([]);
+  const [mentions, setMentions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
+    nom: "",
+    postNom: "",
+    prenom: "",
     email: "",
-    password: "",
-    name: "",
+    motDePasse: "",
+    promotion: "",
+    mention: "",
+    fonction: "",
   });
 
-  const [passwordStrength, setPasswordStrength] = useState(0);
   const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const calculatePasswordStrength = (password) => {
-    let strength = 0;
-    if (password.length >= 8) strength += 1;
-    if (/[A-Z]/.test(password)) strength += 1;
-    if (/[0-9]/.test(password)) strength += 1;
-    if (/[^A-Za-z0-9]/.test(password)) strength += 1;
-    setPasswordStrength(strength);
-  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    if (name === "password") {
-      calculatePasswordStrength(value);
+  };
+
+  useEffect(() => {
+    setMounted(true);
+    // Réinitialiser le formulaire quand le rôle change
+    setFormData({
+      nom: "",
+      postNom: "",
+      prenom: "",
+      email: "",
+      motDePasse: "",
+      promotion: "",
+      mention: "",
+      fonction: "",
+    });
+  }, [role]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (isLogin) {
+      try {
+        let response;
+
+        if (role === "Etudiant") {
+          response = await loginEtudiant({
+            email: formData.email,
+            motDePasse: formData.motDePasse,
+          });
+        } else if (role === "Personnel") {
+          response = await loginPersonnel({
+            email: formData.email,
+            motDePasse: formData.motDePasse,
+          });
+        }
+        console.log(response);
+
+        // ✅ Sauvegarder les infos dans localStorage
+        localStorage.setItem(
+          "utilisateur",
+          JSON.stringify(response.utilisateur)
+        );
+
+        // ✅ Redirection
+        navigate("/demande");
+      } catch (error) {
+        console.error("Erreur de connexion :", error.message);
+        alert(error.message || "Échec de la connexion.");
+      }
+    } else {
+      // Inscription comme avant
+      const dataToSend =
+        role === "Etudiant"
+          ? {
+              nom: formData.nom,
+              postNom: formData.postNom,
+              prenom: formData.prenom,
+              email: formData.email,
+              motDePasse: formData.motDePasse,
+              mention: formData.mention,
+              promotion: formData.promotion,
+              role: "Etudiant",
+            }
+          : {
+              nom: formData.nom,
+              postNom: formData.postNom,
+              prenom: formData.prenom,
+              email: formData.email,
+              motDePasse: formData.motDePasse,
+              mention: formData.mention,
+              role: "Personnel",
+            };
+
+      try {
+        let data;
+        if (role === "Etudiant") {
+          data = await registerEtudiant(dataToSend);
+          alert(data.message || "Inscription étudiante réussie");
+        } else {
+          data = await registerPersonnel(dataToSend);
+          alert(data.message || "Inscription du personnel réussie");
+        }
+      } catch (error) {
+        console.error("Erreur d’inscription :", error.message);
+        alert(error.message || "Erreur lors de l'inscription.");
+      }
     }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log("Form submitted:", { ...formData, role });
-  };
+  useEffect(() => {
+    const fetchPromotionsAndMentions = async () => {
+      try {
+        const data1 = await getAllPromotions();
+        setPromotions(data1);
+        const data2 = await getAllMentions();
+        setMentions(data2);
+        setLoading(false);
+      } catch (error) {
+        console.error(
+          "Erreur lors du chargement des promotions :",
+          error.message
+        );
+      }
+    };
+
+    fetchPromotionsAndMentions();
+  }, []);
 
   return (
     <div
@@ -102,93 +205,180 @@ const AuthPage = () => {
                   onChange={(e) => setRole(e.target.value)}
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-700"
                 >
-                  <option value="student">Étudiant</option>
-                  <option value="teacher">Enseignant</option>
-                  <option value="administrator">Administrateur</option>
+                  <option value="Etudiant">Étudiant</option>
+                  <option value="Personnel">Personnel</option>
+                  {isLogin && (
+                    <option value="administrator">Administrateur</option>
+                  )}
                 </select>
 
                 {!isLogin && (
-                  <div className="relative">
-                    <FiUser className="absolute top-3.5 left-4 text-gray-400" />
-                    <input
-                      type="text"
-                      name="name"
-                      placeholder="Nom complet"
-                      required
-                      className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                    />
-                  </div>
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="relative">
+                        <FiUser className="absolute top-3.5 left-4 text-gray-400" />
+                        <input
+                          type="text"
+                          name="nom"
+                          placeholder="Nom"
+                          required
+                          className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                          value={formData.nom}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                      <div className="relative">
+                        <FiUser className="absolute top-3.5 left-4 text-gray-400" />
+                        <input
+                          type="text"
+                          name="postNom"
+                          placeholder="Postnom"
+                          required
+                          className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                          value={formData.postNom}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                      <div className="relative">
+                        <FiUser className="absolute top-3.5 left-4 text-gray-400" />
+                        <input
+                          type="text"
+                          name="prenom"
+                          placeholder="Prénom"
+                          required
+                          className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                          value={formData.prenom}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="relative">
+                      <FiMail className="absolute top-3.5 left-4 text-gray-400" />
+                      <input
+                        type="email"
+                        name="email"
+                        placeholder="Adresse email"
+                        required
+                        className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+
+                    <div className="relative">
+                      <FiLock className="absolute top-3.5 left-4 text-gray-400" />
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        name="motDePasse"
+                        placeholder="Mot de passe"
+                        required
+                        className="w-full pl-12 pr-12 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        value={formData.motDePasse}
+                        onChange={handleInputChange}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute top-3.5 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        {showPassword ? <FiEyeOff /> : <FiEye />}
+                      </button>
+                    </div>
+
+                    {role === "Etudiant" ? (
+                      <>
+                        <div className="relative">
+                          <select
+                            name="mention"
+                            required
+                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-700"
+                            value={formData.mention}
+                            onChange={handleInputChange}
+                          >
+                            <option value="">Sélectionnez une mention</option>
+                            {mentions.map((mention) => (
+                              <option key={mention._id} value={mention._id}>
+                                {mention.nom}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="relative">
+                          <select
+                            name="promotion"
+                            required
+                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-700"
+                            value={formData.promotion}
+                            onChange={handleInputChange}
+                          >
+                            <option value="">Sélectionnez une promotion</option>
+                            {promotions.map((promo) => (
+                              <option key={promo._id} value={promo._id}>
+                                {promo.nom}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="relative">
+                        <select
+                          name="mention"
+                          required
+                          className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-700"
+                          value={formData.mention}
+                          onChange={handleInputChange}
+                        >
+                          <option value="">Sélectionnez une mention</option>
+                          {mentions.map((mention) => (
+                            <option key={mention._id} value={mention._id}>
+                              {mention.nom}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </>
                 )}
 
-                <div className="relative">
-                  <FiMail className="absolute top-3.5 left-4 text-gray-400" />
-                  <input
-                    type="email"
-                    name="email"
-                    placeholder="Adresse email"
-                    required
-                    className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                  />
-                </div>
-
-                <div className="relative">
-                  <FiLock className="absolute top-3.5 left-4 text-gray-400" />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    name="password"
-                    placeholder="Mot de passe"
-                    required
-                    className="w-full pl-12 pr-12 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute top-3.5 right-4 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    {showPassword ? <FiEyeOff /> : <FiEye />}
-                  </button>
-                </div>
-
-                {formData.password && (
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      {[...Array(4)].map((_, i) => (
-                        <div
-                          key={i}
-                          className={`h-2 flex-1 rounded-full ${
-                            i < passwordStrength
-                              ? "bg-indigo-500"
-                              : "bg-gray-200"
-                          }`}
-                        ></div>
-                      ))}
+                {isLogin && (
+                  <>
+                    <div className="relative">
+                      <FiMail className="absolute top-3.5 left-4 text-gray-400" />
+                      <input
+                        type="email"
+                        name="email"
+                        placeholder="Adresse email"
+                        required
+                        className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                      />
                     </div>
-                    <p className="text-sm text-gray-500">
-                      Solidité du mot de passe:{" "}
-                      {["Faible", "Moyen", "Bon", "Fort"][
-                        passwordStrength - 1
-                      ] || "Très faible"}
-                    </p>
-                  </div>
+
+                    <div className="relative">
+                      <FiLock className="absolute top-3.5 left-4 text-gray-400" />
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        name="motDePasse"
+                        placeholder="Mot de passe"
+                        required
+                        className="w-full pl-12 pr-12 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        value={formData.motDePasse}
+                        onChange={handleInputChange}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute top-3.5 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        {showPassword ? <FiEyeOff /> : <FiEye />}
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
-
-              {isLogin && (
-                <div className="flex items-center justify-end">
-                  <a
-                    href="#"
-                    className="text-sm text-indigo-600 hover:text-indigo-500"
-                  >
-                    Mot de passe oublié ?
-                  </a>
-                </div>
-              )}
 
               <button
                 type="submit"
@@ -197,18 +387,6 @@ const AuthPage = () => {
                 {isLogin ? "Se connecter" : "Créer un compte"}
               </button>
             </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-gray-500">
-                {isLogin ? "Pas encore de compte ? " : "Déjà un compte ? "}
-                <button
-                  onClick={() => setIsLogin(!isLogin)}
-                  className="text-indigo-600 hover:text-indigo-500 font-medium"
-                >
-                  {isLogin ? "S'inscrire" : "Se connecter"}
-                </button>
-              </p>
-            </div>
           </div>
         </div>
       </div>

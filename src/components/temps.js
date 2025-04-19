@@ -16,6 +16,7 @@ import {
 
 const UsersTab = ({
   darkMode,
+  setUsers,
   facultyFilter,
   setFacultyFilter,
   promotionFilter,
@@ -30,61 +31,50 @@ const UsersTab = ({
   const [promotions, setPromotions] = useState([]);
   const [mentions, setMentions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [allUsers, setAllUsers] = useState([]);
+  const [utilisateurs, setUtilisateurs] = useState([]);
 
   // Filtre les utilisateurs en fonction des sélections
   const filteredUsers = useMemo(() => {
-    let result = [...allUsers];
+    let result = [...utilisateurs];
 
     // Filtre par rôle
-    if (userFilter === "Admin") {
-      result = result.filter((user) => user.role === "Admin");
-    } else if (userFilter === "Etudiant" || userFilter === "Personnel") {
-      result = result.filter((user) => user.type === userFilter);
+    if (userFilter !== "all") {
+      result = result.filter((user) => user.role === userFilter);
     }
 
     // Filtre par recherche
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      result = result.filter((user) => {
-        const fullName =
-          (user.prenom ? user.prenom + " " : "") +
-          (user.postNom ? user.postNom + " " : "") +
-          (user.nom || "");
-
-        return (
-          fullName.toLowerCase().includes(query) ||
-          (user.email && user.email.toLowerCase().includes(query))
-        );
-      });
+      result = result.filter(
+        (user) =>
+          user.name.toLowerCase().includes(query) ||
+          user.email.toLowerCase().includes(query) ||
+          (user.matricule && user.matricule.toLowerCase().includes(query))
+      );
     }
 
     // Filtre supplémentaire pour les étudiants
-    if (userFilter === "Etudiant") {
+    if (userFilter === "student") {
       if (facultyFilter) {
-        result = result.filter((user) => user.mention?._id === facultyFilter);
+        result = result.filter((user) => user.faculty === facultyFilter);
       }
-
       if (promotionFilter) {
-        result = result.filter(
-          (user) => user.promotion?._id === promotionFilter
-        );
+        result = result.filter((user) => user.promotion === promotionFilter);
       }
     }
 
-    // Trie les résultats
-    const getFullName = (user) =>
-      `${user.prenom || ""} ${user.postNom || ""} ${user.nom || ""}`.trim();
+    // Filtre par statut
+    if (statusFilter !== "all") {
+      const isActive = statusFilter === "active";
+      result = result.filter((user) => user.active === isActive);
+    }
 
+    // Trie les résultats
     switch (userSort) {
       case "name-asc":
-        return result.sort((a, b) =>
-          getFullName(a).localeCompare(getFullName(b))
-        );
+        return result.sort((a, b) => a.name.localeCompare(b.name));
       case "name-desc":
-        return result.sort((a, b) =>
-          getFullName(b).localeCompare(getFullName(a))
-        );
+        return result.sort((a, b) => b.name.localeCompare(a.name));
       case "date-asc":
         return result.sort(
           (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
@@ -94,19 +84,18 @@ const UsersTab = ({
           (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
         );
       case "role":
-        return result.sort((a, b) =>
-          (a.role || "").localeCompare(b.role || "")
-        );
+        return result.sort((a, b) => a.role.localeCompare(b.role));
       default:
         return result;
     }
   }, [
-    allUsers,
+    utilisateurs,
     userFilter,
     searchQuery,
     userSort,
     facultyFilter,
     promotionFilter,
+    statusFilter,
   ]);
 
   // Pagination des résultats
@@ -138,7 +127,7 @@ const UsersTab = ({
     const fetchUtilisateurs = async () => {
       try {
         const data = await getTousUtilisateurs();
-        setAllUsers(data);
+        setUtilisateurs(data);
         setLoading(false);
 
         console.log(data);
@@ -150,17 +139,6 @@ const UsersTab = ({
 
     fetchUtilisateurs();
   }, []);
-
-  // Trouver le nom de la mention/promotion à partir de l'ID
-  const getMentionName = (id) => {
-    const mention = mentions.find((m) => m._id === id);
-    return mention ? mention.nom : "Non spécifié";
-  };
-
-  const getPromotionName = (id) => {
-    const promo = promotions.find((p) => p._id === id);
-    return promo ? promo.nom : "Non spécifié";
-  };
 
   return (
     <div
@@ -198,7 +176,7 @@ const UsersTab = ({
         } grid grid-cols-1 md:grid-cols-4 gap-4`}
       >
         <div>
-          <label className="block text-sm font-medium mb-1">Type</label>
+          <label className="block text-sm font-medium mb-1">Rôle</label>
           <select
             value={userFilter}
             onChange={(e) => setUserFilter(e.target.value)}
@@ -208,17 +186,17 @@ const UsersTab = ({
                 : "bg-white border-gray-300"
             }`}
           >
-            <option value="all">Tous les types</option>
-            <option value="Admin">Administrateur</option>
-            <option value="Personnel">Personnel</option>
-            <option value="Etudiant">Étudiant</option>
+            <option value="all">Tous les rôles</option>
+            <option value="admin">Administrateur</option>
+            <option value="teacher">Enseignant</option>
+            <option value="student">Étudiant</option>
           </select>
         </div>
 
-        {userFilter === "Etudiant" && (
+        {userFilter === "student" && (
           <>
             <div>
-              <label className="block text-sm font-medium mb-1">Mention</label>
+              <label className="block text-sm font-medium mb-1">Faculté</label>
               <select
                 value={facultyFilter}
                 onChange={(e) => setFacultyFilter(e.target.value)}
@@ -228,7 +206,7 @@ const UsersTab = ({
                     : "bg-white border-gray-300"
                 }`}
               >
-                <option value="">Toutes mentions</option>
+                <option value="">Toutes facultés</option>
                 {mentions.map((mention) => (
                   <option key={mention._id} value={mention._id}>
                     {mention.nom}
@@ -271,13 +249,12 @@ const UsersTab = ({
                 darkMode ? "border-gray-700" : "border-gray-200"
               } border-b`}
             >
-              <th className="text-left py-3 px-4">Nom complet</th>
+              <th className="text-left py-3 px-4">Nom</th>
               <th className="text-left py-3 px-4">Email</th>
               <th className="text-left py-3 px-4">Rôle</th>
-              <th className="text-left py-3 px-4">Type</th>
-              {userFilter === "Etudiant" && (
+              {userFilter === "student" && (
                 <>
-                  <th className="text-left py-3 px-4">Mention</th>
+                  <th className="text-left py-3 px-4">Faculté</th>
                   <th className="text-left py-3 px-4">Promotion</th>
                 </>
               )}
@@ -287,7 +264,7 @@ const UsersTab = ({
           <tbody>
             {paginatedUsers.map((user) => (
               <tr
-                key={user._id}
+                key={user.id}
                 className={`${
                   darkMode ? "border-gray-700" : "border-gray-200"
                 } border-b hover:${darkMode ? "bg-gray-700" : "bg-gray-50"}`}
@@ -296,18 +273,19 @@ const UsersTab = ({
                   <div className="flex items-center gap-3">
                     <div
                       className={`h-10 w-10 rounded-full flex items-center justify-center text-white ${
-                        user.role === "Admin"
+                        user.role === "admin"
                           ? "bg-purple-600"
-                          : user.type === "Personnel"
+                          : user.role === "teacher"
                           ? "bg-green-600"
                           : "bg-blue-600"
                       }`}
                     >
-                      {user.nom.charAt(0)}
+                      {user.name.charAt(0)}
                     </div>
                     <div>
-                      <p className="font-medium">
-                        {[user.prenom, user.nom].filter(Boolean).join(" ")}
+                      <p className="font-medium">{user.name}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {user.matricule || "N/A"}
                       </p>
                     </div>
                   </div>
@@ -316,25 +294,28 @@ const UsersTab = ({
                 <td className="py-3 px-4">
                   <span
                     className={`px-3 py-1 rounded-full text-sm ${
-                      user.role === "Admin"
+                      user.role === "admin"
                         ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-                        : user.type === "Personnel"
+                        : user.role === "teacher"
                         ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                         : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
                     }`}
                   >
-                    {user.role}
+                    {user.role === "admin"
+                      ? "Administrateur"
+                      : user.role === "teacher"
+                      ? "Enseignant"
+                      : "Étudiant"}
                   </span>
                 </td>
-                <td className="py-3 px-4">{user.type}</td>
 
-                {userFilter === "Etudiant" && (
+                {userFilter === "student" && (
                   <>
                     <td className="py-3 px-4">
-                      {getMentionName(user.mention?._id)}
+                      {user.faculty || "Non spécifié"}
                     </td>
                     <td className="py-3 px-4">
-                      {getPromotionName(user.promotion?._id)}
+                      {user.promotion || "Non spécifié"}
                     </td>
                   </>
                 )}

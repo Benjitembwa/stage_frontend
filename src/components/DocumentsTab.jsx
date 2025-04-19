@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FiDownload,
   FiEdit,
@@ -7,204 +7,33 @@ import {
   FiFile,
   FiSearch,
 } from "react-icons/fi";
+import { getAllDocuments } from "../api/apiService";
 
-const DocumentsTab = ({ darkMode, documents, setDocuments }) => {
-  const [newDocument, setNewDocument] = useState({
-    title: "",
-    type: "",
-    recipient: "",
-    date: "",
-    faculty: "",
-    promotion: "",
-  });
-
-  const handleDocumentSubmit = (e) => {
-    e.preventDefault();
-    const newId =
-      documents.length > 0 ? Math.max(...documents.map((d) => d.id)) + 1 : 1;
-    setDocuments([...documents, { ...newDocument, id: newId }]);
-    setNewDocument({
-      title: "",
-      type: "",
-      recipient: "",
-      date: "",
-      faculty: "",
-      promotion: "",
-    });
-  };
-
+const DocumentsTab = ({ darkMode, documents }) => {
   const deleteDocument = (id) => {
     setDocuments(documents.filter((doc) => doc.id !== id));
   };
 
+  const [loading, setLoading] = useState(true);
+  const [document, setDocument] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const docs = await getAllDocuments();
+        setDocument(docs);
+        console.log(docs);
+        setLoading(false);
+      } catch (error) {
+        console.error("Erreur de récupération des documents", error);
+      }
+    };
+
+    fetchData();
+  }, [loading]);
+
   return (
     <div className="space-y-6">
-      {/* Create Document Form */}
-      <div
-        className={`p-6 rounded-xl shadow ${
-          darkMode ? "bg-gray-800" : "bg-white"
-        }`}
-      >
-        <h3 className="text-2xl font-semibold mb-6">
-          Créer un nouveau document
-        </h3>
-        <form
-          onSubmit={handleDocumentSubmit}
-          className="grid grid-cols-1 md:grid-cols-2 gap-6"
-        >
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Titre du document
-            </label>
-            <input
-              type="text"
-              value={newDocument.title}
-              onChange={(e) =>
-                setNewDocument({
-                  ...newDocument,
-                  title: e.target.value,
-                })
-              }
-              className={`w-full p-3 rounded-lg border ${
-                darkMode
-                  ? "bg-gray-700 border-gray-600"
-                  : "bg-white border-gray-300"
-              } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-              required
-              placeholder="Ex: Relevé de notes S1"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Type de document
-            </label>
-            <select
-              value={newDocument.type}
-              onChange={(e) =>
-                setNewDocument({ ...newDocument, type: e.target.value })
-              }
-              className={`w-full p-3 rounded-lg border ${
-                darkMode
-                  ? "bg-gray-700 border-gray-600"
-                  : "bg-white border-gray-300"
-              } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-              required
-            >
-              <option value="">Sélectionner un type...</option>
-              <option value="Relevé">Relevé de notes</option>
-              <option value="Attestation">Attestation de scolarité</option>
-              <option value="Diplôme">Diplôme</option>
-              <option value="Certificat">Certificat</option>
-              <option value="Autre">Autre document</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Destinataire
-            </label>
-            <input
-              type="text"
-              value={newDocument.recipient}
-              onChange={(e) =>
-                setNewDocument({
-                  ...newDocument,
-                  recipient: e.target.value,
-                })
-              }
-              className={`w-full p-3 rounded-lg border ${
-                darkMode
-                  ? "bg-gray-700 border-gray-600"
-                  : "bg-white border-gray-300"
-              } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-              required
-              placeholder="Nom de l'étudiant"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Faculté</label>
-            <select
-              value={newDocument.faculty}
-              onChange={(e) =>
-                setNewDocument({
-                  ...newDocument,
-                  faculty: e.target.value,
-                })
-              }
-              className={`w-full p-3 rounded-lg border ${
-                darkMode
-                  ? "bg-gray-700 border-gray-600"
-                  : "bg-white border-gray-300"
-              } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-            >
-              <option value="">Sélectionner une faculté...</option>
-              <option value="Droit">Droit</option>
-              <option value="Médecine">Médecine</option>
-              <option value="Sciences">Sciences</option>
-              <option value="Lettres">Lettres</option>
-              <option value="Économie">Économie</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Promotion</label>
-            <input
-              type="text"
-              value={newDocument.promotion}
-              onChange={(e) =>
-                setNewDocument({
-                  ...newDocument,
-                  promotion: e.target.value,
-                })
-              }
-              className={`w-full p-3 rounded-lg border ${
-                darkMode
-                  ? "bg-gray-700 border-gray-600"
-                  : "bg-white border-gray-300"
-              } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-              placeholder="Ex: 2023"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Date d'émission
-            </label>
-            <input
-              type="date"
-              value={newDocument.date}
-              onChange={(e) =>
-                setNewDocument({ ...newDocument, date: e.target.value })
-              }
-              className={`w-full p-3 rounded-lg border ${
-                darkMode
-                  ? "bg-gray-700 border-gray-600"
-                  : "bg-white border-gray-300"
-              } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-              required
-            />
-          </div>
-
-          <div className="md:col-span-2 flex justify-end space-x-4">
-            <button
-              type="button"
-              className="px-6 py-3 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors flex items-center"
-            >
-              <FiFile className="mr-2" />
-              Générer le document
-            </button>
-          </div>
-        </form>
-      </div>
-
       {/* Documents Table */}
       <div
         className={`p-6 rounded-xl shadow ${
@@ -292,22 +121,6 @@ const DocumentsTab = ({ darkMode, documents, setDocuments }) => {
               <option value="2023">2023</option>
               <option value="2022">2022</option>
               <option value="2021">2021</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Période</label>
-            <select
-              className={`w-full p-2 rounded border ${
-                darkMode
-                  ? "bg-gray-700 border-gray-600"
-                  : "bg-white border-gray-300"
-              }`}
-            >
-              <option value="">Toute période</option>
-              <option value="last-week">7 derniers jours</option>
-              <option value="last-month">30 derniers jours</option>
-              <option value="last-year">Cette année</option>
             </select>
           </div>
         </div>
