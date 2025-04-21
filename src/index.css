@@ -118,3 +118,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* dans src/index.css ou src/assets/global.css */
+.export-mode * {
+  color: black !important;
+  background-color: white !important;
+  border-color: black !important;
+  box-shadow: none !important;
+  filter: none !important;
+}

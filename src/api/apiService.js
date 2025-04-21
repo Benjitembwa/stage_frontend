@@ -118,3 +118,68 @@ export const getAllDocuments = async () => {
   const response = await axiosInstance.get("/documents");
   return response.data;
 };
+
+export const loginAdmin = async (credentials) => {
+  const response = await axiosInstance.post("/admin/login", credentials);
+  return response.data;
+};
+
+export const fetchDocumentsByProprietaire = async (proprietaireId) => {
+  const response = await axiosInstance.get(
+    `/documents/proprietaire/${proprietaireId}`
+  );
+  return response.data;
+};
+
+export const fetchStatistics = async () => {
+  try {
+    const response = await axiosInstance.get(`/stats`);
+    return response.data;
+  } catch (error) {
+    console.error("Erreur lors de la récupération des statistiques :", error);
+    throw error;
+  }
+};
+
+export const fetchPieChartData = async () => {
+  try {
+    const response = await axiosInstance.get(`/stats/piechart`);
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Erreur lors de la récupération des données pie chart :",
+      error
+    );
+    throw error;
+  }
+};
+
+export const fetchLineChartData = async () => {
+  try {
+    const response = await axiosInstance.get(`/stats/linechart`);
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Erreur lors de la récupération des données line chart :",
+      error
+    );
+    throw error;
+  }
+};
+
+export const fetchAdvancedStats = async () => {
+  const response = await axiosInstance.get("/stats/advanced-stats");
+  return response.data;
+};
+
+export const fetchDocumentsByMentionAndType = async () => {
+  try {
+    const response = await axiosInstance.get(
+      `/stats/documents-by-mention-and-type`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Erreur lors du fetch des stats:", error);
+    throw error;
+  }
+};

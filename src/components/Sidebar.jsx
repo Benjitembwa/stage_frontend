@@ -7,6 +7,7 @@ import {
   FiX,
   FiMenu,
 } from "react-icons/fi";
+import mobile from "../assets/mobile.png";
 
 const Sidebar = ({ navItems, activeTab, setActiveTab }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -69,9 +70,18 @@ const Sidebar = ({ navItems, activeTab, setActiveTab }) => {
         {/* Header de la sidebar */}
         <div className="p-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
           {sidebarOpen && (
-            <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
-              EduDoc Admin
-            </h1>
+            <div className="flex items-center">
+              <div className="block md:hidden">
+                <img src={mobile} alt="logo" className="h-8 w-auto mr-2" />
+              </div>
+              <div className="hidden md:block">
+                <img src={mobile} alt="logo" className="h-8 w-auto mr-2" />
+              </div>
+
+              <span className="text-xl font-semibold text-gray-800 dark:text-white">
+                Fac des Sciences
+              </span>
+            </div>
           )}
           <button
             onClick={toggleSidebar}

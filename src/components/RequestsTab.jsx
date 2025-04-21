@@ -32,8 +32,8 @@ const RequestsTab = ({ darkMode }) => {
 
   const handleApprove = async (id) => {
     try {
-      setLoading(true);
       await approuverAttente(id);
+      setLoading(true);
     } catch (err) {
       console.error("Erreur lors de l'approbation :", err);
     }

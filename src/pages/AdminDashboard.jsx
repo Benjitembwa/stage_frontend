@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FiHome,
   FiFile,
@@ -38,9 +38,9 @@ import Sidebar from "../components/Sidebar";
 import DashboardTab from "../components/DashboardTab";
 import DocumentsTab from "../components/DocumentsTab";
 import RequestsTab from "../components/RequestsTab";
-import ArchivesTab from "../components/ArchivesTab";
 import StatsTab from "../components/StatsTab";
 import UsersTab from "../components/UsersTab";
+import { useNavigate } from "react-router-dom";
 
 const AdminDashboard = () => {
   const [darkMode, setDarkMode] = useState(false);
@@ -69,29 +69,7 @@ const AdminDashboard = () => {
       status: "approved",
     },
   ]);
-  const [documents, setDocuments] = useState([
-    {
-      id: 1,
-      title: "Relevé semestre 1",
-      type: "Relevé",
-      recipient: "Jean Dupont",
-      date: "2023-05-10",
-    },
-    {
-      id: 2,
-      title: "Attestation de scolarité",
-      type: "Attestation",
-      recipient: "Marie Martin",
-      date: "2023-05-09",
-    },
-    {
-      id: 3,
-      title: "Diplôme Licence",
-      type: "Diplôme",
-      recipient: "Pierre Lambert",
-      date: "2023-05-08",
-    },
-  ]);
+  const navigate = useNavigate();
 
   const handleRequestAction = (id, action) => {
     setDocumentRequests((requests) =>
@@ -105,7 +83,6 @@ const AdminDashboard = () => {
     { icon: <FiHome />, label: "Tableau de bord", id: "dashboard" },
     { icon: <FiFile />, label: "Gestion documents", id: "documents" },
     { icon: <FiClock />, label: "Demandes en attente", id: "requests" },
-    { icon: <FiArchive />, label: "Archives", id: "archives" },
     { icon: <FiPieChart />, label: "Statistiques", id: "stats" },
     {
       icon: <FiUsers />,
@@ -114,40 +91,28 @@ const AdminDashboard = () => {
     },
   ];
 
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      name: "Admin Principal",
-      email: "admin@univ.edu",
-      role: "admin",
-      matricule: "ADM001",
-      createdAt: "2023-01-15",
-      active: true,
-    },
-    {
-      id: 2,
-      name: "Prof. Dupont",
-      email: "p.dupont@univ.edu",
-      role: "teacher",
-      matricule: "ENS202",
-      createdAt: "2023-02-20",
-      active: true,
-    },
-    {
-      id: 3,
-      name: "Étudiant Martin",
-      email: "e.martin@univ.edu",
-      role: "student",
-      matricule: "ETU17543",
-      createdAt: "2023-03-10",
-      active: true,
-    },
-    // ... autres utilisateurs initiaux
-  ]);
-
   const [facultyFilter, setFacultyFilter] = useState("");
   const [promotionFilter, setPromotionFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [utilisateur, setUtilisateur] = useState(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("utilisateur");
+
+    if (storedUser && storedUser !== "undefined") {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUtilisateur(parsedUser);
+        console.log(parsedUser);
+      } catch (err) {
+        console.error("Erreur de parsing JSON :", err);
+        navigate("/connexion");
+      }
+    } else {
+      console.warn("Aucun utilisateur trouvé dans le localStorage");
+      navigate("/connexion");
+    }
+  }, [navigate]);
 
   return (
     <div
@@ -189,13 +154,7 @@ const AdminDashboard = () => {
             />
           )}
 
-          {activeTab === "documents" && (
-            <DocumentsTab
-              darkMode={darkMode}
-              documents={documents}
-              setDocuments={setDocuments}
-            />
-          )}
+          {activeTab === "documents" && <DocumentsTab darkMode={darkMode} />}
 
           {activeTab === "requests" && (
             <RequestsTab
@@ -212,8 +171,6 @@ const AdminDashboard = () => {
           {activeTab === "users" && (
             <UsersTab
               darkMode={darkMode}
-              users={users}
-              setUsers={setUsers}
               facultyFilter={facultyFilter}
               setFacultyFilter={setFacultyFilter}
               promotionFilter={promotionFilter}

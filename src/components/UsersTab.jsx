@@ -281,7 +281,6 @@ const UsersTab = ({
                   <th className="text-left py-3 px-4">Promotion</th>
                 </>
               )}
-              <th className="text-left py-3 px-4">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -338,17 +337,6 @@ const UsersTab = ({
                     </td>
                   </>
                 )}
-
-                <td className="py-3 px-4">
-                  <div className="flex">
-                    <button
-                      className="p-2 text-red-600 hover:text-red-800 dark:hover:text-red-400 rounded-full hover:bg-red-50 dark:hover:bg-red-900/30"
-                      title="Supprimer"
-                    >
-                      <FiTrash2 />
-                    </button>
-                  </div>
-                </td>
               </tr>
             ))}
           </tbody>

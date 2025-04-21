@@ -8,6 +8,7 @@ import {
   loginPersonnel,
   registerEtudiant,
   registerPersonnel,
+  loginAdmin,
 } from "../api/apiService";
 
 const AuthPage = () => {
@@ -17,6 +18,7 @@ const AuthPage = () => {
   const [promotions, setPromotions] = useState([]);
   const [mentions, setMentions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -52,6 +54,13 @@ const AuthPage = () => {
     });
   }, [role]);
 
+  useEffect(() => {
+    if (registrationSuccess) {
+      setIsLogin(true);
+      setRegistrationSuccess(false);
+    }
+  }, [registrationSuccess]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -69,23 +78,30 @@ const AuthPage = () => {
             email: formData.email,
             motDePasse: formData.motDePasse,
           });
+        } else if (role === "admin") {
+          response = await loginAdmin({
+            email: formData.email,
+            motDePasse: formData.motDePasse,
+          });
         }
+
         console.log(response);
 
-        // ✅ Sauvegarder les infos dans localStorage
         localStorage.setItem(
           "utilisateur",
           JSON.stringify(response.utilisateur)
         );
 
-        // ✅ Redirection
-        navigate("/demande");
+        if (role === "admin") {
+          navigate("/");
+        } else {
+          navigate("/demande");
+        }
       } catch (error) {
         console.error("Erreur de connexion :", error.message);
         alert(error.message || "Échec de la connexion.");
       }
     } else {
-      // Inscription comme avant
       const dataToSend =
         role === "Etudiant"
           ? {
@@ -117,8 +133,21 @@ const AuthPage = () => {
           data = await registerPersonnel(dataToSend);
           alert(data.message || "Inscription du personnel réussie");
         }
+
+        // Réinitialisation des champs après inscription réussie
+        setFormData({
+          nom: "",
+          postNom: "",
+          prenom: "",
+          email: "",
+          motDePasse: "",
+          promotion: "",
+          mention: "",
+          fonction: "",
+        });
+        setRegistrationSuccess(true);
       } catch (error) {
-        console.error("Erreur d’inscription :", error.message);
+        console.error("Erreur d'inscription :", error.message);
         alert(error.message || "Erreur lors de l'inscription.");
       }
     }
@@ -207,9 +236,7 @@ const AuthPage = () => {
                 >
                   <option value="Etudiant">Étudiant</option>
                   <option value="Personnel">Personnel</option>
-                  {isLogin && (
-                    <option value="administrator">Administrateur</option>
-                  )}
+                  {isLogin && <option value="admin">Administrateur</option>}
                 </select>
 
                 {!isLogin && (

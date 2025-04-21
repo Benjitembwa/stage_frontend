@@ -12,12 +12,24 @@ import {
   FiBell,
   FiEye,
 } from "react-icons/fi";
+import { FaRegClock } from "react-icons/fa";
+import { MdBlock } from "react-icons/md"; // Pour une icône "🚫"
+
 import { AnimatePresence, motion } from "framer-motion";
 import {
   creerAttente,
+  fetchDocumentsByProprietaire,
   fetchTypesDocuments,
   getAttentesParUtilisateur,
 } from "../api/apiService";
+import mobile from "../assets/mobile.png";
+import { pdf } from "@react-pdf/renderer";
+
+import MissionOrderPreview from "../components/MissionOrderPreview";
+import LetterStagePreview from "../components/LetterStagePreview";
+import MissionOrderTemplate from "../components/MissionOrderTemplate";
+import LetterStageTemplate from "../components/LetterStageTemplate";
+import Modal from "../components/Modal";
 
 const DocumentRequestSystem = () => {
   const [darkMode, setDarkMode] = useState(false);
@@ -30,12 +42,20 @@ const DocumentRequestSystem = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterType, setFilterType] = useState("all");
+  const [documents, setDocuments] = useState([]);
+
+  const [previewDocument, setPreviewDocument] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const [newRequest, setNewRequest] = useState({
     destinataire: "",
     typeDocument: "",
     objet: "",
-    proprietaire: "", // Dans la réalité, ce serait automatiquement l'utilisateur connecté
+    proprietaire: "",
+    lieuMission: "",
+    dateDebut: "",
+    dateFin: "",
+    motifMission: "",
   });
 
   useEffect(() => {
@@ -66,12 +86,33 @@ const DocumentRequestSystem = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errorsTemp = {};
+    const selectedType = types.find((t) => t._id === newRequest.typeDocument);
 
     // validations simples
     if (!newRequest.destinataire)
-      errorsTemp.destinataire = "Destinataire  requis";
+      errorsTemp.destinataire = "Destinataire requis";
     if (!newRequest.typeDocument) errorsTemp.typeDocument = "Type requis";
     if (!newRequest.objet) errorsTemp.objet = "Objet requis";
+
+    // Validations spécifiques pour les ordres de mission
+    if (selectedType?.nom === "Ordre de mission") {
+      if (!newRequest.lieuMission)
+        errorsTemp.lieuMission = "Lieu de mission requis";
+      if (!newRequest.dateDebut) errorsTemp.dateDebut = "Date de début requise";
+      if (!newRequest.dateFin) errorsTemp.dateFin = "Date de fin requise";
+      if (!newRequest.motifMission)
+        errorsTemp.motifMission = "Motif de mission requis";
+
+      // Validation que la date de fin est après la date de début
+      if (
+        newRequest.dateDebut &&
+        newRequest.dateFin &&
+        new Date(newRequest.dateFin) < new Date(newRequest.dateDebut)
+      ) {
+        errorsTemp.dateFin =
+          "La date de fin doit être postérieure à la date de début";
+      }
+    }
 
     if (Object.keys(errorsTemp).length > 0) {
       setErrors(errorsTemp);
@@ -83,6 +124,17 @@ const DocumentRequestSystem = () => {
         ...newRequest,
         proprietaire: utilisateur.id,
         proprietaireModel: utilisateur.role,
+        // On inclut les champs spécifiques même s'ils sont vides
+        // (le backend peut les ignorer si nécessaire)
+        detailsSpecifiques:
+          selectedType?.nom === "Ordre de mission"
+            ? {
+                lieuMission: newRequest.lieuMission,
+                dateDebut: newRequest.dateDebut,
+                dateFin: newRequest.dateFin,
+                motifMission: newRequest.motifMission,
+              }
+            : null,
       };
 
       const response = await creerAttente(data);
@@ -95,10 +147,26 @@ const DocumentRequestSystem = () => {
         typeDocument: "",
         objet: "",
         proprietaire: "",
+        lieuMission: "",
+        dateDebut: "",
+        dateFin: "",
+        motifMission: "",
       });
       setErrors({});
+
+      // Notification de succès
+      setNotification({
+        type: "success",
+        message: "Demande créée avec succès",
+      });
+      setTimeout(() => setNotification(null), 3000);
     } catch (error) {
       console.error("Erreur lors de la soumission :", error);
+      setNotification({
+        type: "error",
+        message: "Erreur lors de la création de la demande",
+      });
+      setTimeout(() => setNotification(null), 3000);
     }
   };
 
@@ -142,6 +210,28 @@ const DocumentRequestSystem = () => {
     fetchAttentes();
   }, [loading]);
 
+  useEffect(() => {
+    const loadDocs = async () => {
+      try {
+        const utilisateurString = localStorage.getItem("utilisateur");
+        if (utilisateurString) {
+          const utilisateur = JSON.parse(utilisateurString);
+          if (utilisateur?.id) {
+            const data = await fetchDocumentsByProprietaire(utilisateur.id);
+            setDocuments(data);
+            console.log(data);
+          }
+        }
+      } catch (err) {
+        console.error("Erreur lors du chargement des documents", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDocs();
+  }, [loading]);
+
   // Filter requests
   const filteredRequests = requests.filter((request) => {
     const matchesSearch =
@@ -157,6 +247,75 @@ const DocumentRequestSystem = () => {
     return matchesSearch && matchesStatus && matchesType;
   });
 
+  const filteredRequests2 = documents.filter((request) => {
+    const matchesSearch =
+      request.destinataire.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      request.proprietaire.nom
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      request._id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      filterStatus === "all" || request.status === filterStatus;
+    const matchesType =
+      filterType === "all" || request.typeDocument.nom === filterType;
+    return matchesSearch && matchesStatus && matchesType;
+  });
+
+  const handlePreview = (doc) => {
+    if (
+      doc.typeDocument?.nom === "Lettre de stage" ||
+      doc.typeDocument?.nom === "Ordre de mission"
+    ) {
+      setPreviewDocument(doc);
+      setIsPreviewOpen(true);
+    } else {
+      alert(
+        "Prévisualisation disponible uniquement pour les lettres de stage et ordres de mission"
+      );
+    }
+  };
+
+  const handleDownload = async (doc) => {
+    try {
+      if (doc.typeDocument?.nom === "Lettre de stage") {
+        const pdfBlob = await pdf(
+          <LetterStageTemplate documentData={doc} />
+        ).toBlob();
+        const url = URL.createObjectURL(pdfBlob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `Lettre_Stage_${doc.proprietaire?.nom || ""}_${
+          doc.codeUnique || ""
+        }.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else if (doc.typeDocument?.nom === "Ordre de mission") {
+        const pdfBlob = await pdf(
+          <MissionOrderTemplate documentData={doc} />
+        ).toBlob();
+        const url = URL.createObjectURL(pdfBlob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `Ordre_Mission_${doc.proprietaire?.nom || ""}_${
+          doc.codeUnique || ""
+        }.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        alert(
+          "Téléchargement spécifique disponible uniquement pour les lettres de stage et ordres de mission"
+        );
+      }
+    } catch (error) {
+      console.error("Erreur lors de la génération du PDF", error);
+      alert("Une erreur est survenue lors du téléchargement");
+    }
+  };
+
   return (
     <div
       className={`min-h-screen ${
@@ -169,9 +328,15 @@ const DocumentRequestSystem = () => {
           darkMode ? "bg-gray-800" : "bg-white"
         } shadow-sm p-4 flex items-center justify-between`}
       >
-        <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">
-          EduDoc Portal
-        </h1>
+        <div className="flex items-center">
+          <div className="block">
+            <img src={mobile} alt="logo" className="h-8 w-auto mr-2" />
+          </div>
+
+          <span className="text-xl font-semibold text-gray-800 dark:text-white hidden md:block">
+            Fac des Sciences
+          </span>
+        </div>
 
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
@@ -200,7 +365,7 @@ const DocumentRequestSystem = () => {
             >
               <div className="flex items-center">
                 <FiCheck className="text-blue-600 dark:text-blue-400 mr-2" />
-                <span>{notification}</span>
+                <span>{notification.message}</span>
               </div>
             </motion.div>
           )}
@@ -275,6 +440,111 @@ const DocumentRequestSystem = () => {
                 )}
               </div>
 
+              {/* Champs supplémentaires pour Ordre de mission */}
+              {newRequest.typeDocument &&
+                types.find((t) => t._id === newRequest.typeDocument)?.nom ===
+                  "Ordre de mission" && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        Lieu de la mission*
+                      </label>
+                      <input
+                        type="text"
+                        name="lieuMission"
+                        value={newRequest.lieuMission || ""}
+                        onChange={handleInputChange}
+                        className={`w-full p-2 rounded border ${
+                          errors.lieuMission
+                            ? "border-red-500"
+                            : darkMode
+                            ? "bg-gray-700 border-gray-600"
+                            : "bg-white border-gray-300"
+                        }`}
+                      />
+                      {errors.lieuMission && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {errors.lieuMission}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          Date de début*
+                        </label>
+                        <input
+                          type="date"
+                          name="dateDebut"
+                          value={newRequest.dateDebut || ""}
+                          onChange={handleInputChange}
+                          className={`w-full p-2 rounded border ${
+                            errors.dateDebut
+                              ? "border-red-500"
+                              : darkMode
+                              ? "bg-gray-700 border-gray-600"
+                              : "bg-white border-gray-300"
+                          }`}
+                        />
+                        {errors.dateDebut && (
+                          <p className="text-red-500 text-xs mt-1">
+                            {errors.dateDebut}
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          Date de fin*
+                        </label>
+                        <input
+                          type="date"
+                          name="dateFin"
+                          value={newRequest.dateFin || ""}
+                          onChange={handleInputChange}
+                          className={`w-full p-2 rounded border ${
+                            errors.dateFin
+                              ? "border-red-500"
+                              : darkMode
+                              ? "bg-gray-700 border-gray-600"
+                              : "bg-white border-gray-300"
+                          }`}
+                        />
+                        {errors.dateFin && (
+                          <p className="text-red-500 text-xs mt-1">
+                            {errors.dateFin}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        Motif de la mission*
+                      </label>
+                      <textarea
+                        name="motifMission"
+                        value={newRequest.motifMission || ""}
+                        onChange={handleInputChange}
+                        rows={3}
+                        className={`w-full p-2 rounded border ${
+                          errors.motifMission
+                            ? "border-red-500"
+                            : darkMode
+                            ? "bg-gray-700 border-gray-600"
+                            : "bg-white border-gray-300"
+                        }`}
+                      ></textarea>
+                      {errors.motifMission && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {errors.motifMission}
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
+
               <div>
                 <label className="block text-sm font-medium mb-1">
                   Objet de la demande*
@@ -307,6 +577,10 @@ const DocumentRequestSystem = () => {
                     typeDocument: "",
                     objet: "",
                     proprietaire: "",
+                    lieuMission: "",
+                    dateDebut: "",
+                    dateFin: "",
+                    motifMission: "",
                   });
                   setErrors({});
                 }}
@@ -431,16 +705,50 @@ const DocumentRequestSystem = () => {
                       </span>
                     </td>
                     <td className="py-3 px-4">
+                      <div className="flex space-x-2 items-center">
+                        {request.status === "En attente" && (
+                          <FaRegClock className="text-yellow-500" />
+                        )}
+                        {request.status === "Rejeté" && (
+                          <MdBlock className="text-red-600" />
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
+                {filteredRequests2.map((request) => (
+                  <tr
+                    key={request._id}
+                    className={`${
+                      darkMode ? "border-gray-700" : "border-gray-200"
+                    } border-b`}
+                  >
+                    <td className="py-3 px-4">{request.objet}</td>
+                    <td className="py-3 px-4">{request.typeDocument?.nom}</td>
+                    <td className="py-3 px-4">
+                      {request.proprietaire?.prenom} {request.proprietaire?.nom}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        {request.status}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
                       <div className="flex space-x-2">
-                        <button className="p-1 text-blue-600 hover:text-blue-800 dark:hover:text-blue-400">
+                        <button
+                          onClick={() => handlePreview(request)}
+                          className="p-1 text-blue-600 hover:text-blue-800 dark:hover:text-blue-400"
+                        >
                           <FiEye />
                         </button>
-
-                        {request.status === "Rejeté" && (
-                          <button className="p-1 text-red-600 hover:text-red-800 dark:hover:text-red-400">
-                            <FiX />
-                          </button>
-                        )}
+                        <button
+                          className="p-1.5 text-green-600 hover:text-green-800 dark:hover:text-green-400 rounded-full hover:bg-green-50 dark:hover:bg-green-900/50"
+                          title="Télécharger"
+                          onClick={() => handleDownload(request)}
+                        >
+                          <FiDownload />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -449,13 +757,31 @@ const DocumentRequestSystem = () => {
             </table>
           </div>
 
-          {filteredRequests.length === 0 && (
+          {filteredRequests.length === 0 && filteredRequests2.length === 0 && (
             <div className="text-center py-8 text-gray-500">
               Aucune demande trouvée correspondant à vos critères
             </div>
           )}
         </motion.div>
       </main>
+
+      {isPreviewOpen && (
+        <Modal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)}>
+          {previewDocument?.typeDocument?.nom === "Lettre de stage" ? (
+            <LetterStagePreview
+              documentData={previewDocument}
+              onClose={() => setIsPreviewOpen(false)}
+              darkMode={darkMode}
+            />
+          ) : previewDocument?.typeDocument?.nom === "Ordre de mission" ? (
+            <MissionOrderPreview
+              documentData={previewDocument}
+              onClose={() => setIsPreviewOpen(false)}
+              darkMode={darkMode}
+            />
+          ) : null}
+        </Modal>
+      )}
     </div>
   );
 };
