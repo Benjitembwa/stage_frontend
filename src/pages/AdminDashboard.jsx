@@ -97,7 +97,7 @@ const AdminDashboard = () => {
   const [utilisateur, setUtilisateur] = useState(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("utilisateur");
+    const storedUser = localStorage.getItem("admin");
 
     if (storedUser && storedUser !== "undefined") {
       try {

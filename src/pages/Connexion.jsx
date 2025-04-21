@@ -92,6 +92,8 @@ const AuthPage = () => {
           JSON.stringify(response.utilisateur)
         );
 
+        localStorage.setItem("admin", JSON.stringify(response.admin));
+
         if (role === "admin") {
           navigate("/");
         } else {
